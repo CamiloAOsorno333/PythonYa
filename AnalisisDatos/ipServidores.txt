@@ -1,0 +1,224 @@
+En este escenario básicamente dividimos la interface fastethernet 0/0 en múltiples sub-interfaces y asignamos cada sub-interface a un VRF específico (Interface fastethernet 0/0.10 en VPN_10 y fastethernet0/0.20 en VPN_20).
+
+Vamos a ver la configuración para explicar paso a paso el propósito de cada comando:
+
+hostname R1
+!
+ip vrf VPN_10
+ rd 10:10 
+!
+ip vrf VPN_20
+ rd 20:20
+!
+interface FastEthernet0/0.10
+ encapsulation dot1Q 10
+ ip vrf forwarding VPN_10
+ ip address 10.10.0.1 255.255.255.0
+!
+interface FastEthernet0/0.20
+ encapsulation dot1Q 20
+ ip vrf forwarding VPN_20
+ ip address 10.20.0.1 255.255.255.0
+!
+ip route vrf VPN_10 192.168.10.0 255.255.255.0 10.10.0.2
+ip route vrf VPN_20 192.168.20.0 255.255.255.0 10.20.0.2
+!
+end
+
+
+Empezaremos con la creación del VRF:
+
+ip vrf VPN_10 : Estamos creando una tabla de enrutamiento virtual en este router denominada VPN_10
+
+rd 10:10 : Estamos creando un identificador para las rutas en un VRF específico; en futuros eventos veremos que yo al utilizar VRF's puedo comunicar dos redes con el mismo direccionamiento IP en diferentes VRFs ya que a cada prefijo de red se le asignara el RD como identificador y por ende será único.
+
+El número puede ser al azar.
+
+Normalmente se utiliza ASN:Número al azar o Dirección_IP:Número al azar.
+
+Interface x/x
+
+ip vrf forwarding VPN_10 : Este comando asocia a la interface a una tabla de enrutamiento específico (Nota: Este comando remueve la configuración de IP previamente configurada en esta interface por ende debes de volver a asignarla).
+
+Vamos a pasar ahora a ver la configuración de Router 2 en este escenario (No se explicara cada uno de los comandos ya que el significado de ellos es el mismo)
+
+Vamos a ver la configuración para explicar paso a paso el propósito de cada comando:
+
+
+hostname R2
+!
+ip vrf VPN_10
+ rd 10:10 
+!
+ip vrf VPN_20
+ rd 20:20
+!
+interface FastEthernet0/0.10
+ encapsulation dot1Q 10
+ ip vrf forwarding VPN_10
+ ip address 10.10.0.2 255.255.255.0
+!
+interface FastEthernet0/0.20
+ encapsulation dot1Q 20
+ ip vrf forwarding VPN_20
+ ip address 10.20.0.2 255.255.255.0
+!
+end
+
+
+Configuraremos dos loopbacks en R2 tambíen:
+
+interface Loopback1
+ ip vrf forwarding VPN_10
+ ip address 192.168.10.1 255.255.255.0
+!
+interface Loopback2
+ ip vrf forwarding VPN_20
+ ip address 192.168.20.1 255.255.255.0!
+
+Ahora verifiquemos  la configuración de VRF en R1
+
+R1#sh ip vrf 
+  Name                             Default RD          Interfaces
+  VPN_10                           10:10               Fa0/0.10
+  VPN_20                           20:20               Fa0/0.20
+
+  R1#sh ip vrf interfaces 
+Interface              IP-Address      VRF                              Protocol
+Fa0/0.10               10.10.0.1       VPN_10                           up      
+Fa0/0.20               10.20.0.1       VPN_20                           up 
+
+
+
+Perfecto, ahora veamos las tablas de enrutamiento en R1,
+
+Pregunta: Cuantas tablas de enrutamiento con la configuración previa tiene R1?
+
+Tiene 3 : VPN_A , VPN_B y la Global (En la global estan las interfaces que no pertenecen a ningún VRF)
+
+1- La Tabla de Enrutamiento Global
+
+R1#sh ip route
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
+D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area
+N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+E1 - OSPF external type 1, E2 - OSPF external type 2
+i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 - IS-IS level-2
+ia - IS-IS inter area, * - candidate default, U - per-user static route
+o - ODR, P - periodic downloaded static route, H - NHRP, l - LISP
++ - replicated route, % - next hop override
+
+Gateway of last resort is not set
+
+Como podemos observar no tenemos ninguna ruta
+
+2-La Tabla de Enrutamiento de VPN_10
+
+R1#sh ip route vrf VPN_10
+
+Routing Table: VPN_10
+Codes: C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area 
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 - IS-IS level-2
+       ia - IS-IS inter area, * - candidate default, U - per-user static route
+       o - ODR, P - periodic downloaded static route
+
+Gateway of last resort is not set
+
+     10.0.0.0/24 is subnetted, 1 subnets
+C       10.10.0.0 is directly connected, FastEthernet0/0.10
+
+
+Podemos observar únicamente la interfaz asignada en R1 a esta tabla de enrutamiento
+
+3-La tabla de enrutamiento de VPN_20
+
+R1#sh ip route vrf VPN_20
+
+Routing Table: VPN_20
+Codes: C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area 
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 - IS-IS level-2
+       ia - IS-IS inter area, * - candidate default, U - per-user static route
+       o - ODR, P - periodic downloaded static route
+
+Gateway of last resort is not set
+
+     10.0.0.0/24 is subnetted, 1 subnets
+C       10.20.0.0 is directly connected, FastEthernet0/0.20
+
+De igual manera solamente tenemos la interfaz asociada a dicho VRF
+
+Comportamiento de enrutamiento con VRFs
+
+Vamos  a hablar ahora de enrutamiento en un VRF; con el escenario mencionado anteriormente vamos a hacer que los hosts en la interface de R1 en VPN_10 pueda accesar la loopback de R2 en VPN_10.
+
+Simplemente se crea una ruta estática haciendo referencia al VRF_10
+
+ip route vrf VPN_10 192.168.10.0 255.255.255.0 10.10.0.2
+ip route vrf VPN_20 192.168.20.0 255.255.255.0 10.20.0.2
+
+Posteriormente pruebo conectividad y veo que todo funciona de la manera correcta
+
+ R1#ping vrf VPN_10 192.168.10.1
+
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 192.168.10.1, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 60/63/64 ms
+
+R1#ping vrf VPN_20 192.168.20.1
+
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 192.168.20.1, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 60/65/68 ms
+
+Nota: A la hora de hacer Ping debo incluir que tabla de enrutamiento utilizar para alcanzar cierto destino ya que por defecto utilizara la global
+
+Por último verifiquemos la tabla de enrutamiento de R1 con ese cambio:
+
+R1#sh ip route vrf VPN_10      
+
+Routing Table: VPN_10
+Codes: C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area 
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 - IS-IS level-2
+       ia - IS-IS inter area, * - candidate default, U - per-user static route
+       o - ODR, P - periodic downloaded static route
+
+Gateway of last resort is not set
+
+S    192.168.10.0/24 [1/0] via 10.10.0.2
+     10.0.0.0/24 is subnetted, 1 subnets
+C       10.10.0.0 is directly connected, FastEthernet0/0.10
+
+
+
+R1#sh ip route vrf VPN_20
+
+Routing Table: VPN_20
+Codes: C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area 
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 - IS-IS level-2
+       ia - IS-IS inter area, * - candidate default, U - per-user static route
+       o - ODR, P - periodic downloaded static route
+
+Gateway of last resort is not set
+
+S    192.168.20.0/24 [1/0] via 10.20.0.2
+     10.0.0.0/24 is subnetted, 1 subnets
+C       10.20.0.0 is directly connected, FastEthernet0/0.20
+
+
+Podemos ver la ruta estática incluida previamente,
+
+Espero que les sea util este laboratorio.
