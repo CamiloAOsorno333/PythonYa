@@ -5,7 +5,20 @@ n1= int(input("Ingrese el  Nro. 1= " + '\n'))
 n2= int(input("Ingrese el  Nro. 2= " + '\n'))
 n3= int(input("Ingrese el  Nro. 2= " + '\n'))
 
-if n1==10 and n2==10 and n3==10:
-    print("Los tres números son iguales a 10")
+if n1>n2 and n1>n3:
+    print("El número mayor es el Nro.1= " , n1)
 else:
-   print("Son diferentes de 10")
+    if n2>n1 and n2>n3:
+        print("El número mayor es el Nro. 2= " , n2)
+    else:
+        print("El número mayor es el Nro. 3= ", n3)
+
+print("Ahora veamos cual es el número menor")
+
+if n1<n2 and n1<n3:
+    print("El número menor es el Nro. 1= " , n1)
+else:
+    if n2<n1 and n2<n3:
+        print("El número menor es el Nro.2= " , n2)
+    else:
+        print("El número menor es el Nro.3= " , n3)
